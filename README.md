@@ -1,4 +1,5 @@
 ## Tested on
+Bare-Metal Hardware | 
 OS: Ubuntu 26.04 | 
 NIC: Alfa AWUS036AC / RTL8812AU / rtw88_8812au | 
 python3 venv
