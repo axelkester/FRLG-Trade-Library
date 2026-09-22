@@ -4,6 +4,7 @@ OS: Ubuntu 26.04 |
 NIC: Alfa AWUS036AC / RTL8812AU / rtw88_8812au | 
 python3 venv
 
+
 ## Web application (Pokédex trade library)
 
 The repository now ships a self-hosted web UI that turns the project into a visual
@@ -16,6 +17,7 @@ keeps working exactly as before.
 Stack: Python 3, FastAPI, Uvicorn, Jinja2 + vanilla JS/CSS, Server-Sent Events.
 No React/Node, no runtime network dependency (all Gen III metadata is vendored in
 `webapp/data/gen3.json`, generated once from the [pret/pokefirered](https://github.com/pret/pokefirered) decompilation).
+
 
 ## Installation
 
@@ -34,6 +36,7 @@ python3 -m venv venv && ./venv/bin/pip install -r requirements.txt
 (If the vendored metadata should ever be regenerated - not needed to run anything:
 `python3 tools/build_metadata.py`. It downloads a few files from the pinned
 pret/pokefirered commit and rewrites `webapp/data/gen3.json`.)
+
 
 ## Configuration
 
@@ -72,6 +75,7 @@ panel itself is self-healing: it polls the trade state every 5 s and reconnects
 the event stream whenever it has been silent, replaying the current trade's log
 into the panel after any reconnect or page reload.
 
+
 ## Launch
 
 ```bash
@@ -100,6 +104,7 @@ Then open <http://127.0.0.1:8000> (or the configured host:port).
 Do not weaken the host globally (e.g. disabling firewalls or running the app as
 root on a public interface) just to make the UI work.
 
+
 ## Workflow: opening the page to a completed Switch trade
 
 1. Put your `.pk3`/`.ek3` files into `pokemon_library/` (any nesting).
@@ -120,26 +125,14 @@ A **Cancel** button terminates the child gracefully (SIGINT → SIGTERM → SIGK
 against its process group); only one trade runs at a time; a PID file reaps any
 orphaned `frlgtrade.py` left behind if the web app is killed.
 
-## Tests
-
-```bash
-./venv/bin/python -m pytest tests/        # 134 tests, no Switch required
-```
-
-Covers the extended PK3/EK3 decoder (80/100-byte, checksums, TID/SID, IVs/EVs,
-friendship, ability, nature, shiny, Pokérus, met data, ball, origin game), the
-internal-species→National-Dex mapping (internal ids are NOT dex numbers after
-Celebi), item/move tables, library indexing (duplicates, corrupt files, path
-traversal), the whole HTTP API, trade argv construction (validated against the
-real `frlgtrade.py` parser), one-trade-at-a-time locking, and the dry-run
-lifecycle. The existing CLI surface is pinned by compatibility tests.
 
 ## Web app limitations
 
 - The live LDN path itself is unchanged and still needs Linux + root/capabilities
   + a compatible Wi-Fi card; `--dry-run` fakes the entire trade for UI work.
 - Met locations: FRLG stores a map-section index; names come from the decomp's
-  region-map data (Kanto/Sevii sections + the documented 0xFC..0xFE sentinels).
+  region-map data (Kanto/Sevii sections + the documented 0xFC..0xFE sentinels). 
+  It may contain mistakes/bugs, planning to work on that on the next update.
 - A Pokémon whose personality equals its OT id (XOR key 0) makes `.pk3`/`.ek3`
   indistinguishable - the same documented limitation as `Mon.from_pk3`.
 - Sprites are opt-in (see `tools/fetch_sprites.py`); the UI placeholder is used
@@ -147,11 +140,12 @@ lifecycle. The existing CLI surface is pinned by compatibility tests.
 - An abrupt `kill -9` of the web app cannot run cleanup code; the next start
   reaps the orphan via the PID file.
 
+
 ## Credits
 - [kinnay](https://github.com/kinnay) - For the [LDN library](https://github.com/kinnay/LDN) this is built upon, and the excellent [NintendoClients Wiki](https://github.com/kinnay/NintendoClients/wiki)
 - [pokefirered](https://github.com/pret/pokefirered) - A full decompilation of FireRed/LeafGreen, including the Switch port. It served as an important reference.
 - [tornadus](https://github.com/tornadus/), [trowgundam](https://github.com/trowgundam), [MercuryEnigma](https://github.com/MercuryEnigma) - For the [frlg-ldn-trade](https://github.com/tornadus/frlg-ldn-trade) project.
-- Deepseek!
+- Deepseek
 
 ## License
 AGPLv3
