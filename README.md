@@ -1,3 +1,5 @@
+main-fix-verbose-status
+
 ## Web application (Pokédex trade library)
 
 The repository now ships a self-hosted web UI that turns the project into a visual
