@@ -70,11 +70,19 @@ async def event_stream(request: Request, trader: TradeManager):
     Extracted from the route so the generator is directly unit-testable; the
     keepalive comment (``: keepalive``) doubles as the client reconnection guide
     via the ``retry:`` field.
+
+    Every fresh connection starts with a ``sync`` frame: the FULL current state
+    payload plus the current trade's buffered log lines. The browser uses it to
+    rebuild the badge/steps AND the whole trade-log panel after any EventSource
+    reconnect or page reload, so a reconnection mid-trade can never leave the UI
+    blind (the "second trade shows no logs" bug).
     """
     queue = trader.bus.subscribe()
     try:
         yield "retry: 2000\n\n"
-        yield f"event: state\ndata: {json.dumps(trader.state_payload())}\n\n"
+        sync = trader.state_payload()
+        sync["logs"] = trader.log_replay()
+        yield f"event: sync\ndata: {json.dumps(sync)}\n\n"
         while True:
             if await request.is_disconnected():
                 break

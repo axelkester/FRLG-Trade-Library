@@ -6,6 +6,11 @@
 # "0.0.0.0" to reach it from other devices on a private LAN.
 host = "127.0.0.1"
 port = 8000
+# Rotating log file (2 MB x 4 backups). Every webapp message AND every line the
+# frlgtrade.py child prints during a trade is written here - this is the debug
+# artifact for anything the web UI cannot show. Relative paths resolve against
+# the repository root. Empty string "" = no file, stderr only.
+log_file = "logs/webapp.log"
 
 [library]
 # Where .pk3/.ek3 files live (scanned recursively).

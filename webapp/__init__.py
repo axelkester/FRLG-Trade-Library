@@ -8,4 +8,4 @@ the existing ``frlgtrade.py`` CLI. It never reimplements LDN.
 Launch:  python -m webapp [--config config.toml] [--dry-run] [--host H] [--port P]
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"

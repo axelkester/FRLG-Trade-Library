@@ -7,7 +7,6 @@
 !/frlgsim/
 !/webapp/
 !/tools/
-!/tests/
 
 # Downloaded Gen III sprites (Nintendo IP; opt-in via tools/fetch_sprites.py).
 webapp/static/sprites/

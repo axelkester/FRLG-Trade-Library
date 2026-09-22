@@ -41,12 +41,19 @@ class ConfigError(ValueError):
 class AppConfig:
     host: str = "127.0.0.1"
     port: int = 8000
+    # Rotating log file for the whole web app (webapp log lines PLUS every line
+    # the frlgtrade.py child prints - the child's stdout is re-logged by the trade
+    # manager). None = log to stderr only.
+    log_file: Path | None = REPO_ROOT / "logs" / "webapp.log"
 
     def __post_init__(self) -> None:
         if not isinstance(self.host, str) or not self.host:
             raise ConfigError("[app].host must be a non-empty string")
         if type(self.port) is not int or not 1 <= self.port <= 65535:
             raise ConfigError("[app].port must be an integer in 1..65535")
+        if self.log_file is not None and not isinstance(self.log_file, Path):
+            raise ConfigError("[app].log_file must be a path (or empty to disable "
+                              "file logging)")
 
 
 @dataclass(frozen=True)
@@ -173,9 +180,18 @@ def load_config(path: Path | str | None = None) -> WebConfig:
     if not all(isinstance(section, dict) for section in (app_raw, lib_raw, trade_raw)):
         raise ConfigError("the [app], [library] and [trade] sections must be TOML tables")
 
+    log_file_raw = app_raw.get("log_file", "logs/webapp.log")
+    if log_file_raw is None or log_file_raw == "":
+        log_file: Path | None = None
+    else:
+        log_file = _path(log_file_raw, "[app].log_file")
+        # Relative paths resolve against the repository root, not the process cwd.
+        if not log_file.is_absolute():
+            log_file = REPO_ROOT / log_file
     app = AppConfig(
         host=app_raw.get("host", "127.0.0.1"),
         port=app_raw.get("port", 8000),
+        log_file=log_file,
     )
     library = LibraryConfig(
         path=_path(lib_raw.get("path", "./pokemon_library"), "[library].path"),
