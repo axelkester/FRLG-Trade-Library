@@ -117,9 +117,11 @@ root on a public interface) just to make the UI work.
 5. On the Switch: Direct Corner → trade room → **Leader**. Accept the join from
    the simulated trainer (default name "EMU"), walk to the left chair, select a
    Pokémon, and accept the trade confirmation (same steps as the CLI README).
-6. Watch the state machine in the side panel: SCANNING → JOINING → CONNECTED →
+6. Press OK on the popup message (webapp).
+7. Proceed to trade in-game as you would normally.
+   Watch the state machine in the side panel: SCANNING → JOINING → CONNECTED →
    TRADING → COMPLETED, with the live `frlgtrade.py` log streamed underneath.
-7. The received Pokémon lands in `received/` with a collision-safe name; its
+8. The received Pokémon lands in `received/` with a collision-safe name; its
    sprite and full details appear in the panel, the trade is added to the
    **History** view, and **Add to library** copies it into the library.
 
