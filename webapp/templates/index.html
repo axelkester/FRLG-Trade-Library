@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FRLG Trade Library</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23d43a3a'/%3E%3Crect x='0' y='7.5' width='16' height='1' fill='%23111'/%3E%3Ccircle cx='8' cy='8' r='3' fill='%23f5f5f5' stroke='%23111'/%3E%3C/svg%3E">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="ball" aria-hidden="true"></span>
+    <h1>FRLG Trade Library</h1>
+  </div>
+  <div class="header-actions">
+    <span id="library-stats" class="muted"></span>
+    <button id="btn-history" class="btn ghost">History</button>
+    <button id="btn-rescan" class="btn ghost">Rescan</button>
+    <button id="btn-panel" class="btn ghost panel-toggle" aria-label="Toggle trade panel">Trade ▸</button>
+    <span id="state-badge" class="badge state-idle">IDLE</span>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="content">
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Search Pokémon…" autocomplete="off">
+      <div id="type-filters" class="type-filters" role="group" aria-label="Filter by type"></div>
+      <div class="toggles">
+        <label class="toggle"><input type="checkbox" id="available-only"> available</label>
+        <label class="toggle"><input type="checkbox" id="shiny-only"> shiny</label>
+      </div>
+      <select id="sort" class="select">
+        <option value="dex">National Dex</option>
+        <option value="name">Name A–Z</option>
+      </select>
+    </div>
+    <div id="grid" class="grid" aria-live="polite"></div>
+    <p id="grid-empty" class="muted hidden">No Pokémon match the current filters.</p>
+  </section>
+
+  <aside id="trade-panel" class="trade-panel">
+    <h2>Live trade</h2>
+    <ol class="steps">
+      <li data-step="IDLE" class="step">Idle</li>
+      <li data-step="SCANNING" class="step">Scanning</li>
+      <li data-step="JOINING" class="step">Joining</li>
+      <li data-step="CONNECTED" class="step">Connected</li>
+      <li data-step="TRADING" class="step">Trading</li>
+      <li data-step="COMPLETED" class="step">Completed</li>
+      <li data-step="FAILED" class="step">Failed</li>
+      <li data-step="CANCELLED" class="step">Cancelled</li>
+    </ol>
+    <div id="trade-current" class="trade-current muted">No trade running.</div>
+    <div id="trade-result" class="trade-result hidden"></div>
+    <div class="log-wrap">
+      <div id="log" class="log" aria-live="polite"></div>
+    </div>
+    <button id="btn-cancel" class="btn danger" disabled>Cancel trade</button>
+  </aside>
+</main>
+
+<div id="modal-backdrop" class="modal-backdrop hidden">
+  <div id="modal" class="modal" role="dialog" aria-modal="true">
+    <button id="modal-close" class="modal-close" aria-label="Close">✕</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+# frlg-ldn-trade web application configuration.
+# Copy/adapt as needed; every field is optional (defaults shown below).
+
+[app]
+# Bind address for the web UI. "127.0.0.1" = localhost only; use
+# "0.0.0.0" to reach it from other devices on a private LAN.
+host = "127.0.0.1"
+port = 8000
+
+[library]
+# Where .pk3/.ek3 files live (scanned recursively).
+path = "./pokemon_library"
+# Where received Pokémon are saved after a trade (never overwritten).
+received_path = "./received"
+# Copy every received Pokémon into the library automatically (default: manual,
+# via the "Add to library" button).
+auto_add_received = false
+
+[trade]
+# WiFi phy used for the LDN join (must exist, e.g. phy0 / phy1).
+phy = "phy0"
+# Switch prod.keys (live trades only). Its CONTENTS are never shown in the UI or
+# logs; only this path is used to spawn frlgtrade.py.
+keys = "~/.switch/prod.keys"
+# Python interpreter that has the frlg-ldn-trade requirements installed
+# (ldn, pycryptodome, trio, zstandard). ./bin/python = the project venv.
+python = "./bin/python"
+# LDN passphrase as hex (optional). Empty = the built-in 64-byte emulator
+# passphrase shared by FRLG/RSE (the default used by the existing CLI).
+password = ""
+# LDN local_communication_id to join, as hex (optional). Empty = join the only
+# available network.
+comm_id = ""
+# Trainer identity presented to the host (same semantics as frlgtrade.py --ot).
+ot = "EMU"
+# version = "firered" | "leafgreen"
+version = "leafgreen"
+# Seconds before a stuck live trade is force-stopped (the CLI has long graceful
+# leave tails, so this should stay generous).
+timeout = 600
+# Optional argv prefix for the frlgtrade.py child process. The existing LDN
+# transport needs elevated network privileges; for development run the whole web
+# app with `sudo -E` instead of using this. Admin-controlled config ONLY - the
+# browser can never influence it.
+prefix = []
+# Stream the child's verbose output to the trade log panel.
+verbose = true
+# Simulate trades without a Switch (also available as --dry-run).
+dry_run = false
+# Multiplier for the simulated milestone delays in dry-run mode (tests use a tiny
+# value; leave at 1.0 for a realistic UI pacing).
+dry_run_scale = 1.0
+# Seconds after a FINISHED trade (FAILED, CANCELLED or COMPLETED) before the state
+# returns to IDLE on its own (0 = never; the UI keeps showing the terminal state).
+idle_reset_seconds = 15.0
