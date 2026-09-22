@@ -9,7 +9,7 @@ keeps working exactly as before.
 
 Stack: Python 3, FastAPI, Uvicorn, Jinja2 + vanilla JS/CSS, Server-Sent Events.
 No React/Node, no runtime network dependency (all Gen III metadata is vendored in
-`webapp/data/gen3.json`, generated once from the pret/pokefirered decompilation).
+`webapp/data/gen3.json`, generated once from the [pret/pokefirered](https://github.com/pret/pokefirered) decompilation).
 
 ## Installation
 
