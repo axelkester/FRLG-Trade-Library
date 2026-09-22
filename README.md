@@ -134,7 +134,7 @@ lifecycle. The existing CLI surface is pinned by compatibility tests.
 ## Credits
 - [kinnay](https://github.com/kinnay) - For the [LDN library](https://github.com/kinnay/LDN) this is built upon, and the excellent [NintendoClients Wiki](https://github.com/kinnay/NintendoClients/wiki)
 - [pokefirered](https://github.com/pret/pokefirered) - A full decompilation of FireRed/LeafGreen, including the Switch port. It served as an important reference.
-- [tornadus](https://github.com/tornadus/),[trowgundam](https://github.com/trowgundam),[MeecuryEnigma](https://github.com/MercuryEnigma) - For the [frlg-ldn-trade](https://github.com/tornadus/frlg-ldn-trade) project.
+- [tornadus](https://github.com/tornadus/), [trowgundam](https://github.com/trowgundam), [MeecuryEnigma](https://github.com/MercuryEnigma) - For the [frlg-ldn-trade](https://github.com/tornadus/frlg-ldn-trade) project.
 - Deepseek!
 
 ## License
