@@ -288,7 +288,12 @@ async function startTrade(inst) {
     alert(`Could not start the trade (${res.status}).`);
     return;
   }
+  // Fresh trade: clear the previous run's log panel and result card. Live log
+  // lines keep appending over SSE; if the stream reconnects, the server's sync
+  // frame replays everything the child has printed so far.
   $("#log").textContent = "";
+  resultRenderedId = null;
+  $("#trade-result").classList.add("hidden");
   applyState(await res.json());
 }
 
@@ -298,6 +303,12 @@ async function cancelTrade() {
 }
 
 function applyState(payload) {
+  // Dedupe: the watchdog polls /api/state every 5s and SSE reconnects re-send
+  // the current payload; re-rendering unchanged payloads would needlessly churn
+  // the modal and grid.
+  const key = JSON.stringify(payload);
+  if (key === lastPayloadKey) return;
+  lastPayloadKey = key;
   state.trade = payload;
   const badge = $("#state-badge");
   badge.textContent = payload.state;
@@ -326,6 +337,11 @@ function applyState(payload) {
   } else if (payload.state === "IDLE") {
     current.textContent = "No trade running.";
   }
+  // A completed trade must keep its result card visible even across page
+  // reloads / SSE reconnects (the received event only fires once).
+  if (payload.last_result && payload.last_result.state === "COMPLETED") {
+    renderResult(payload.last_result);
+  }
   if (!payload.active) refreshDexCounts();
   refreshTradeButtons();
 }
@@ -349,15 +365,48 @@ async function refreshDexCounts() {
 /* ---------- SSE ---------- */
 let sseSource = null;
 let lastEventAt = Date.now();
+let lastPayloadKey = "";
+let resultRenderedId = null;
+
+function appendLogLine(evt) {
+  const logBox = $("#log");
+  const line = el("div", "line" + (evt.milestone ? " milestone" : ""), evt.text);
+  if (/(error|fatal|abort|fail)/i.test(evt.text) && !evt.milestone) line.classList.add("error");
+  logBox.append(line);
+  logBox.parentElement.scrollTop = logBox.parentElement.scrollHeight;
+}
+
+function renderResult(result) {
+  if (!result || !result.received || result.record_id === resultRenderedId) return;
+  resultRenderedId = result.record_id;
+  const box = $("#trade-result");
+  box.classList.remove("hidden");
+  box.textContent = "";
+  box.append(el("h3", null, "Trade completed — Pokémon received!"));
+  const row = el("div", "row");
+  const r = result.received;
+  row.append(spriteBox(r.species_national, r.species_name, false));
+  const info = el("div");
+  info.append(el("div", null, `${r.nickname || r.species_name} · ` +
+    `${r.species_name} (#${pad3(r.species_national)}) · Lv ${r.level ?? "?"}${r.shiny ? " ✦" : ""}`));
+  info.append(el("div", "muted", `saved as ${result.file}`));
+  const addBtn = el("button", "btn", "Add to library");
+  addBtn.addEventListener("click", () => addToLibrary(result.record_id, addBtn));
+  info.append(el("div", null), addBtn);
+  row.append(info);
+  box.append(row);
+}
 
 function connectEvents() {
   openEvents();
-  // Watchdog: during an active trade the UI must never go blind. If the SSE
-  // stream has been silent for too long, force a reconnect; in any case, keep
-  // polling /api/state so the badge stays truthful even if the stream died.
+  // Self-healing watchdog - runs in EVERY state, not just while a trade is
+  // "active". The old active-only gate left two permanent blind spots: after
+  // COMPLETED the UI never re-synced (so the auto-return to IDLE was never
+  // shown), and a stale/dead EventSource at the start of the NEXT trade left
+  // the badge stuck on "Scanning" with an empty log panel. Now the badge is
+  // re-synced by polling every 5s, and a silent stream forces a fresh SSE
+  // connection (whose sync frame replays the current trade's log).
   setInterval(() => {
-    const active = state.trade && state.trade.active;
-    if (!active) return;
     if (Date.now() - lastEventAt > 20000) openEvents();
     fetch("/api/state")
       .then((r) => r.json())
@@ -370,35 +419,25 @@ function openEvents() {
   if (sseSource) sseSource.close();
   const source = new EventSource("/api/events");
   const touch = () => { lastEventAt = Date.now(); };
+  source.addEventListener("sync", (e) => {
+    // Fresh connection (initial load OR reconnect): full state + the current
+    // trade's buffered log lines. Rebuild the badge/steps AND the log panel.
+    touch();
+    const sync = JSON.parse(e.data);
+    applyState(sync);
+    const logBox = $("#log");
+    logBox.textContent = "";
+    for (const line of sync.logs || []) appendLogLine(line);
+  });
   source.addEventListener("state", (e) => { touch(); applyState(JSON.parse(e.data)); });
   source.addEventListener("log", (e) => {
     touch();
-    const evt = JSON.parse(e.data);
-    const logBox = $("#log");
-    const line = el("div", "line" + (evt.milestone ? " milestone" : ""), evt.text);
-    if (/(error|fatal|abort|fail)/i.test(evt.text) && !evt.milestone) line.classList.add("error");
-    logBox.append(line);
-    logBox.parentElement.scrollTop = logBox.parentElement.scrollHeight;
+    appendLogLine(JSON.parse(e.data));
   });
   source.addEventListener("received", async (e) => {
     touch();
     const evt = JSON.parse(e.data);
-    const box = $("#trade-result");
-    box.classList.remove("hidden");
-    box.textContent = "";
-    box.append(el("h3", null, "Trade completed — Pokémon received!"));
-    const row = el("div", "row");
-    const r = evt.received;
-    row.append(spriteBox(r.species_national, r.species_name, false));
-    const info = el("div");
-    info.append(el("div", null, `${r.nickname || r.species_name} · ` +
-      `${r.species_name} (#${pad3(r.species_national)}) · Lv ${r.level ?? "?"}${r.shiny ? " ✦" : ""}`));
-    info.append(el("div", "muted", `saved as ${evt.file}`));
-    const addBtn = el("button", "btn", "Add to library");
-    addBtn.addEventListener("click", () => addToLibrary(evt.record_id, addBtn));
-    info.append(el("div", null), addBtn);
-    row.append(info);
-    box.append(row);
+    renderResult(evt);
     await refreshDexCounts();
   });
   source.onerror = () => { /* EventSource auto-reconnects (retry: 2000) */ };

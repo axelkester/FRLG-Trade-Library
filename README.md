@@ -38,6 +38,7 @@ every option; the defaults:
 [app]
 host = "127.0.0.1"     # "0.0.0.0" to reach the UI from other LAN devices
 port = 8000
+log_file = "logs/webapp.log"  # rotating log (2 MB x 4); "" = stderr only
 
 [library]
 path = "./pokemon_library"      # scanned recursively for *.pk3 / *.ek3
@@ -55,6 +56,15 @@ idle_reset_seconds = 15          # auto-return FAILED/CANCELLED/COMPLETED to IDL
 The browser can never influence any of this: it only sends indexed Pokémon ids
 (SHA-256 of the file contents), never filesystem paths or shell arguments.
 `prod.keys` contents are never shown in the UI or logs.
+
+**Debugging.** Every webapp message and every line the spawned `frlgtrade.py`
+child prints during a trade is written to `[app].log_file` (default
+`logs/webapp.log`, rotating at 2 MB). If the web UI misbehaves - e.g. the trade
+panel looks stuck - this file contains the complete child output and the state
+machine's transitions (`frlgweb.trade`), so a bug report can quote it. The web
+panel itself is self-healing: it polls the trade state every 5 s and reconnects
+the event stream whenever it has been silent, replaying the current trade's log
+into the panel after any reconnect or page reload.
 
 ## Launch
 
@@ -107,7 +117,7 @@ orphaned `frlgtrade.py` left behind if the web app is killed.
 ## Tests
 
 ```bash
-./venv/bin/python -m pytest tests/        # 123 tests, no Switch required
+./venv/bin/python -m pytest tests/        # 134 tests, no Switch required
 ```
 
 Covers the extended PK3/EK3 decoder (80/100-byte, checksums, TID/SID, IVs/EVs,

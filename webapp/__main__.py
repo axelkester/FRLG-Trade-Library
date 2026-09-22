@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import logging
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 import uvicorn
 
@@ -33,6 +35,29 @@ def build_parser() -> argparse.ArgumentParser:
     return ap
 
 
+def configure_log_file(path: Path | None) -> RotatingFileHandler | None:
+    """Attach a rotating file handler to the ROOT logger so every webapp message
+    AND every frlgtrade.py child line (re-logged by the trade manager) lands in
+    one greppable file. Returns the handler (for tests/cleanup) or None when file
+    logging is disabled or the file cannot be opened."""
+    if path is None:
+        return None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        handler = RotatingFileHandler(path, maxBytes=2_000_000, backupCount=4,
+                                      encoding="utf-8")
+        handler.setFormatter(logging.Formatter(
+            "%(asctime)s %(levelname)-7s %(name)s: %(message)s"))
+        logging.getLogger().addHandler(handler)
+        logging.getLogger("frlgweb").info("log file: %s", path)
+        return handler
+    except OSError as exc:
+        logging.getLogger("frlgweb").warning(
+            "cannot open log file %s (%s); continuing with stderr logging only",
+            path, exc)
+        return None
+
+
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     logging.basicConfig(
@@ -42,6 +67,7 @@ def main(argv=None) -> int:
     log.info("FRLG trade library webapp v%s (repo: %s)", __version__, REPO_ROOT)
     cfg = resolve_config(args.config, dry_run=args.dry_run,
                          host=args.host, port=args.port)
+    configure_log_file(cfg.app.log_file)
     for warning in cfg.validate_runtime():
         log.warning("%s", warning)
     log.info("serving on http://%s:%s (library=%s, received=%s, phy=%s, dry_run=%s)",

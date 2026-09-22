@@ -27,6 +27,7 @@ import secrets
 import shutil
 import signal
 import tempfile
+from collections import deque
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +46,13 @@ TERMINAL_STATES = frozenset(("COMPLETED", "FAILED", "CANCELLED"))
 
 HISTORY_FILE = ".history.json"
 PID_FILE = ".trade.pid"
+
+# How many of the CURRENT trade's log lines are kept for replay to freshly
+# connected SSE subscribers (page reloads, EventSource reconnects). Without the
+# replay a reconnect mid-trade re-synced the state badge but left the log panel
+# empty - the "second trade shows no logs" bug. The complete stream is always in
+# the app's log file; this buffer only feeds the web UI.
+LOG_REPLAY_MAX = 400
 
 # Milestone patterns are anchored to the EXISTING frlgtrade.py log lines (verified
 # against frlgtrade.py / frlgsim/trade.py). Matching is case-insensitive. Order
@@ -101,7 +109,7 @@ class TradeNotAllowedError(RuntimeError):
 class EventBus:
     """Fan-out of JSON-safe events to any number of SSE subscribers."""
 
-    def __init__(self, maxsize: int = 256):
+    def __init__(self, maxsize: int = 1024):
         self._queues: set[asyncio.Queue[dict[str, Any]]] = set()
         self._maxsize = maxsize
 
@@ -196,6 +204,7 @@ class TradeManager:
         self.last_result: dict[str, Any] | None = None
         self.history: list[dict[str, Any]] = self._load_history()
         self._pidfile = self.received_dir / PID_FILE
+        self._log_buffer: deque[dict[str, Any]] = deque(maxlen=LOG_REPLAY_MAX)
         self._cleanup_stale_pidfile()
 
     # ---- public API ---------------------------------------------------------
@@ -230,6 +239,7 @@ class TradeManager:
             out_path = self._received_path_for(entry)
             self._cancel_requested = False
             self._cancel_idle_reset()          # a new trade cancels any pending reset
+            self._log_buffer.clear()           # replay belongs to THIS trade only
             self.state = "SCANNING"
             self.last_result = None
             self.current = {
@@ -252,9 +262,11 @@ class TradeManager:
         """Gracefully stop the running trade (SIGINT -> SIGTERM -> SIGKILL)."""
         if self.state not in ACTIVE_STATES:
             return self.state_payload()
+        previous_state = self.state
         self._cancel_requested = True
         if self.state != "CANCELLED":
             self.state = "CANCELLED"
+        log.info("cancel requested (was %s)", previous_state)
         self._log_line("Cancel requested — stopping frlgtrade…")
         proc = self._proc
         if proc is not None:
@@ -320,6 +332,7 @@ class TradeManager:
         )
         self._proc = proc
         self._write_pidfile(proc.pid)
+        log.info("frlgtrade child started (pid=%s)", proc.pid)
         reader = asyncio.create_task(self._read_stream(proc))
         self._tasks.add(reader)
         reader.add_done_callback(self._tasks.discard)
@@ -374,6 +387,8 @@ class TradeManager:
     # ---- finishing -----------------------------------------------------------
     def _finish(self, entry: LibraryEntry, out_path: Path, *, code: int,
                 timed_out: bool) -> None:
+        log.info("trade finished: code=%s timed_out=%s received_file=%s", code,
+                 timed_out, out_path.is_file())
         if self._cancel_requested or self.state == "CANCELLED":
             self.state = "CANCELLED"
             self._publish({"type": "state", **self.state_payload()})
@@ -535,12 +550,19 @@ class TradeManager:
                 break
         if new_state is not None and not self._regress(new_state):
             self.state = new_state
+        self._log_buffer.append({"text": text, "milestone": milestone})
         event: dict[str, Any] = {"type": "log", "text": text}
         if milestone:
             event["milestone"] = milestone
         self._publish(event)
         if new_state is not None:
             self._publish({"type": "state", **self.state_payload()})
+
+    def log_replay(self) -> list[dict[str, Any]]:
+        """The current trade's log lines so far (oldest first) - replayed to a
+        freshly connected SSE subscriber so the browser can rebuild the log panel
+        after a reconnect or page reload."""
+        return list(self._log_buffer)
 
     async def _terminate(self, proc: asyncio.subprocess.Process) -> None:
         """SIGINT (graceful leave) -> SIGTERM -> SIGKILL against the process group."""
@@ -549,6 +571,8 @@ class TradeManager:
         for sig, grace in ((signal.SIGINT, 15.0), (signal.SIGTERM, 5.0),
                            (signal.SIGKILL, None)):
             try:
+                log.info("terminating frlgtrade pid=%s with signal %s", proc.pid,
+                         sig.name)
                 os.killpg(os.getpgid(proc.pid), sig)
             except (ProcessLookupError, PermissionError, OSError):
                 pass
